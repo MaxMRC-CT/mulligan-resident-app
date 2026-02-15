@@ -1,0 +1,256 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// ENUMS
+// ========================================
+
+enum Role {
+  RESIDENT
+  STAFF
+  ADMIN
+}
+
+enum AnnouncementAudience {
+  ALL
+  RESIDENTS
+  STAFF
+}
+
+enum ChoreShift {
+  AM
+  PM
+}
+
+enum ChoreStatus {
+  ASSIGNED
+  SUBMITTED
+  APPROVED
+  NEEDS_REDO
+}
+
+enum MeetingType {
+  AA
+  NA
+  OTHER
+}
+
+enum AttendanceStatus {
+  PLANNED
+  ATTENDED
+  NO_SHOW
+}
+
+// ========================================
+// MODELS
+// ========================================
+
+model User {
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  passwordHash       String
+  role               Role
+  isActive           Boolean   @default(true)
+  messagingDisabled  Boolean   @default(false)
+  mustChangePassword Boolean   @default(true)
+  displayName        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  announcements       Announcement[]
+  acknowledgements    AnnouncementAck[]
+  sentMessages        Message[]
+  assignedChores      ChoreAssignment[]    @relation("ChoreAssignee")
+  createdAssignments  ChoreAssignment[]    @relation("ChoreAssigner")
+  choreSubmissions    ChoreSubmission[]    @relation("ChoreSubmitter")
+  reviewedSubmissions ChoreSubmission[]    @relation("ChoreReviewer")
+  meetingPlans        MeetingPlan[]
+  journalEntries      JournalEntry[]
+  auditLogs           AuditLog[]
+  messageThread       MessageThread?
+
+  @@index([username])
+  @@index([role])
+}
+
+model Announcement {
+  id        String                @id @default(cuid())
+  title     String
+  body      String
+  pinned    Boolean               @default(false)
+  audience  AnnouncementAudience  @default(ALL)
+  authorId  String
+  author    User                  @relation(fields: [authorId], references: [id])
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  // Relations
+  acknowledgements AnnouncementAck[]
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model AnnouncementAck {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+}
+
+model MessageThread {
+  id         String    @id @default(cuid())
+  residentId String    @unique
+  resident   User      @relation(fields: [residentId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  messages Message[]
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  threadId  String
+  thread    MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User          @relation(fields: [senderId], references: [id])
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([threadId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model ChoreTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assignments ChoreAssignment[]
+}
+
+model ChoreAssignment {
+  id           String      @id @default(cuid())
+  templateId   String
+  template     ChoreTemplate @relation(fields: [templateId], references: [id])
+  assignedToId String
+  assignedTo   User        @relation("ChoreAssignee", fields: [assignedToId], references: [id])
+  assignedById String
+  assignedBy   User        @relation("ChoreAssigner", fields: [assignedById], references: [id])
+  dueDate      DateTime
+  shift        ChoreShift
+  status       ChoreStatus @default(ASSIGNED)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  submissions ChoreSubmission[]
+
+  @@index([assignedToId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model ChoreSubmission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   ChoreAssignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  submittedById String
+  submittedBy  User             @relation("ChoreSubmitter", fields: [submittedById], references: [id])
+  photoUrl     String
+  note         String?
+  reviewedById String?
+  reviewedBy   User?            @relation("ChoreReviewer", fields: [reviewedById], references: [id])
+  reviewNote   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([assignmentId])
+  @@index([submittedById])
+}
+
+model Meeting {
+  id        String      @id @default(cuid())
+  type      MeetingType
+  name      String
+  location  String
+  dayOfWeek Int?        // 0-6 (Sunday-Saturday), null for one-time/variable
+  startTime String?     // HH:MM format
+  notes     String?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  // Relations
+  plans MeetingPlan[]
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model MeetingPlan {
+  id        String           @id @default(cuid())
+  meetingId String
+  meeting   Meeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  date      DateTime         @db.Date
+  status    AttendanceStatus @default(PLANNED)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([meetingId, userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model JournalEntry {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  body           String
+  mood           Int?     // 1-5 scale
+  shareWithStaff Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([shareWithStaff])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String?
+  targetId   String?
+  metaJson   String?  // JSON string for additional context
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
