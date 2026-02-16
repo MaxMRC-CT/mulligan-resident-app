@@ -1,5 +1,6 @@
-import { SessionOptions } from 'iron-session';
+import { SessionOptions, getIronSession } from 'iron-session';
 import { Role } from '@prisma/client';
+import { cookies } from 'next/headers';
 
 export interface SessionData {
   userId: string;
@@ -19,3 +20,8 @@ export const sessionOptions: SessionOptions = {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 };
+
+export async function getSession() {
+  const cookieStore = await cookies();
+  return getIronSession<SessionData>(cookieStore, sessionOptions);
+}

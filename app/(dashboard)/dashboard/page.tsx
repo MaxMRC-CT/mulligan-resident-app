@@ -1,287 +1,293 @@
-import { requireAuth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
-import { Card } from '@/components/Card';
-import Link from 'next/link';
-import { Role } from '@prisma/client';
+import { format } from 'date-fns';
 
-export default async function DashboardPage() {
-  const session = await requireAuth();
-
-  // Get quick stats based on role
-  const stats = await getStats(session.userId, session.role);
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-mulligan-warm-gray mb-2">
-          Welcome back, {session.displayName || session.username}!
-        </h1>
-        <p className="text-gray-600">
-          {session.role === Role.RESIDENT
-            ? "Here's what's happening today"
-            : 'Dashboard overview'}
-        </p>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        <Card>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Unread Announcements</p>
-              <p className="text-3xl font-bold text-mulligan-orange">
-                {stats.unreadAnnouncements}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-mulligan-orange/10 rounded-full flex items-center justify-center">
-              <span className="text-2xl">📢</span>
-            </div>
-          </div>
-          <Link
-            href="/announcements"
-            className="mt-4 text-sm text-mulligan-orange hover:underline inline-block"
-          >
-            View announcements →
-          </Link>
-        </Card>
-
-        {session.role === Role.RESIDENT && (
-          <>
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Chores Today</p>
-                  <p className="text-3xl font-bold text-mulligan-orange">
-                    {stats.choresToday}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-mulligan-orange/10 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">✓</span>
-                </div>
-              </div>
-              <Link
-                href="/chores"
-                className="mt-4 text-sm text-mulligan-orange hover:underline inline-block"
-              >
-                View chores →
-              </Link>
-            </Card>
-
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Planned Meetings</p>
-                  <p className="text-3xl font-bold text-mulligan-orange">
-                    {stats.upcomingMeetings}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-mulligan-orange/10 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">📅</span>
-                </div>
-              </div>
-              <Link
-                href="/meetings"
-                className="mt-4 text-sm text-mulligan-orange hover:underline inline-block"
-              >
-                View meetings →
-              </Link>
-            </Card>
-          </>
-        )}
-
-        {(session.role === Role.STAFF || session.role === Role.ADMIN) && (
-          <>
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Pending Chores</p>
-                  <p className="text-3xl font-bold text-mulligan-orange">
-                    {stats.pendingChores}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-mulligan-orange/10 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">⏳</span>
-                </div>
-              </div>
-              <Link
-                href="/chores"
-                className="mt-4 text-sm text-mulligan-orange hover:underline inline-block"
-              >
-                Review chores →
-              </Link>
-            </Card>
-
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Active Residents</p>
-                  <p className="text-3xl font-bold text-mulligan-orange">
-                    {stats.activeResidents}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-mulligan-orange/10 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">👥</span>
-                </div>
-              </div>
-            </Card>
-          </>
-        )}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <h2 className="text-xl font-semibold text-mulligan-warm-gray mb-4">
-            Quick Actions
-          </h2>
-          <div className="space-y-2">
-            <Link
-              href="/announcements"
-              className="block p-3 rounded-lg hover:bg-mulligan-soft-gray transition-colors"
-            >
-              <p className="font-medium">View Announcements</p>
-              <p className="text-sm text-gray-600">Stay updated with house news</p>
-            </Link>
-            {session.role === Role.RESIDENT && (
-              <>
-                <Link
-                  href="/chores"
-                  className="block p-3 rounded-lg hover:bg-mulligan-soft-gray transition-colors"
-                >
-                  <p className="font-medium">Complete Chores</p>
-                  <p className="text-sm text-gray-600">Upload proof and track completion</p>
-                </Link>
-                <Link
-                  href="/journal"
-                  className="block p-3 rounded-lg hover:bg-mulligan-soft-gray transition-colors"
-                >
-                  <p className="font-medium">Write in Journal</p>
-                  <p className="text-sm text-gray-600">Private reflection and notes</p>
-                </Link>
-              </>
-            )}
-            {(session.role === Role.STAFF || session.role === Role.ADMIN) && (
-              <Link
-                href="/admin"
-                className="block p-3 rounded-lg hover:bg-mulligan-soft-gray transition-colors"
-              >
-                <p className="font-medium">Admin Console</p>
-                <p className="text-sm text-gray-600">Manage users and settings</p>
-              </Link>
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="text-xl font-semibold text-mulligan-warm-gray mb-4">
-            Important Reminders
-          </h2>
-          <div className="space-y-3">
-            <div className="flex items-start space-x-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <p className="font-medium text-sm">Emergency Notice</p>
-                <p className="text-xs text-gray-600">
-                  This app is not for emergencies. Speak with staff directly for immediate assistance.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <span className="text-xl">📱</span>
-              <div>
-                <p className="font-medium text-sm">Check In Daily</p>
-                <p className="text-xs text-gray-600">
-                  Review announcements and complete assigned chores each day.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <span className="text-xl">🔒</span>
-              <div>
-                <p className="font-medium text-sm">Privacy Notice</p>
-                <p className="text-xs text-gray-600">
-                  Your journal entries are private unless you choose to share them with staff.
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-async function getStats(userId: string, role: Role) {
+async function getDashboardData(userId: string, role: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  if (role === Role.RESIDENT) {
-    const [unreadCount, choresCount, meetingsCount] = await Promise.all([
-      prisma.announcement.count({
-        where: {
-          audience: { in: ['ALL', 'RESIDENTS'] },
-          acknowledgements: {
-            none: {
-              userId,
-            },
-          },
-        },
-      }),
-      prisma.choreAssignment.count({
-        where: {
-          assignedToId: userId,
-          dueDate: {
-            gte: today,
-            lt: tomorrow,
-          },
-          status: 'ASSIGNED',
-        },
-      }),
-      prisma.meetingPlan.count({
-        where: {
-          userId,
-          date: {
-            gte: today,
-          },
-          status: 'PLANNED',
-        },
-      }),
-    ]);
+  // Get announcements
+  const announcements = await prisma.announcement.findMany({
+    where: {
+      OR: [
+        { audience: 'ALL' },
+        { audience: role === 'RESIDENT' ? 'RESIDENTS' : 'STAFF' }
+      ]
+    },
+    include: {
+      author: { select: { displayName: true, username: true } },
+      acknowledgements: {
+        where: { userId }
+      }
+    },
+    orderBy: [
+      { pinned: 'desc' },
+      { createdAt: 'desc' }
+    ],
+    take: 10
+  });
 
-    return {
-      unreadAnnouncements: unreadCount,
-      choresToday: choresCount,
-      upcomingMeetings: meetingsCount,
-    };
-  } else {
-    const [unreadCount, pendingCount, residentCount] = await Promise.all([
-      prisma.announcement.count({
-        where: {
-          audience: { in: ['ALL', 'STAFF'] },
-          acknowledgements: {
-            none: {
-              userId,
-            },
-          },
-        },
-      }),
-      prisma.choreAssignment.count({
-        where: {
-          status: 'SUBMITTED',
-        },
-      }),
-      prisma.user.count({
-        where: {
-          role: Role.RESIDENT,
-          isActive: true,
-        },
-      }),
-    ]);
-
-    return {
-      unreadAnnouncements: unreadCount,
-      pendingChores: pendingCount,
-      activeResidents: residentCount,
-    };
+  // Get today's chores (only for residents)
+  let todayChores = [];
+  if (role === 'RESIDENT') {
+    todayChores = await prisma.choreAssignment.findMany({
+      where: {
+        assignedToId: userId,
+        dueDate: {
+          gte: today,
+          lt: tomorrow
+        }
+      },
+      include: {
+        template: true,
+        submissions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      },
+      orderBy: { shift: 'asc' }
+    });
   }
+
+  // Get today's meetings
+  const dayOfWeek = today.getDay();
+  const meetingPlans = await prisma.meetingPlan.findMany({
+    where: {
+      userId,
+      date: today
+    },
+    include: {
+      meeting: true
+    },
+    orderBy: {
+      meeting: { startTime: 'asc' }
+    }
+  });
+
+  return { announcements, todayChores, meetingPlans };
+}
+
+export default async function DashboardPage() {
+  const session = await getSession();
+  
+  if (!session.userId) {
+    redirect('/login');
+  }
+
+  const { announcements, todayChores, meetingPlans } = await getDashboardData(
+    session.userId,
+    session.role
+  );
+
+  const today = format(new Date(), 'EEEE, MMMM d, yyyy');
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {session.displayName || session.username}
+        </h1>
+        <p className="text-gray-600 mt-1">{today}</p>
+      </div>
+
+      {/* Daily Planner Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Announcements */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Announcements Section */}
+          <div className="bg-white shadow rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">📢 Announcements</h2>
+            {announcements.length === 0 ? (
+              <p className="text-gray-500 italic">No announcements at this time.</p>
+            ) : (
+              <div className="space-y-4">
+                {announcements.map((announcement) => (
+                  <div
+                    key={announcement.id}
+                    className={`border-l-4 pl-4 py-2 ${
+                      announcement.pinned ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900">
+                          {announcement.pinned && '📌 '}
+                          {announcement.title}
+                        </h3>
+                        <p className="text-gray-700 mt-1 whitespace-pre-wrap">{announcement.body}</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          By {announcement.author.displayName || announcement.author.username} • {' '}
+                          {format(new Date(announcement.createdAt), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      {announcement.acknowledgements.length === 0 && (
+                        <form action="/api/announcements/acknowledge" method="POST">
+                          <input type="hidden" name="announcementId" value={announcement.id} />
+                          <button
+                            type="submit"
+                            className="ml-4 text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Mark as Read
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Today's Schedule/Meetings */}
+          {session.role === 'RESIDENT' && (
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">📅 Today's Schedule</h2>
+                <a
+                  href="/schedule/add"
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  + Add Work Shift
+                </a>
+              </div>
+              
+              {meetingPlans.length === 0 ? (
+                <p className="text-gray-500 italic">No meetings scheduled for today.</p>
+              ) : (
+                <div className="space-y-3">
+                  {meetingPlans.map((plan) => (
+                    <div key={plan.id} className="flex items-center p-3 bg-gray-50 rounded">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{plan.meeting.name}</p>
+                        <p className="text-sm text-gray-600">
+                          {plan.meeting.startTime} • {plan.meeting.location}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 text-xs rounded-full ${
+                        plan.status === 'ATTENDED' ? 'bg-green-100 text-green-800' :
+                        plan.status === 'NO_SHOW' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {plan.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column - Today's Chores */}
+        {session.role === 'RESIDENT' && (
+          <div className="space-y-6">
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">✅ Today's Chores</h2>
+              
+              {todayChores.length === 0 ? (
+                <p className="text-gray-500 italic">No chores assigned for today.</p>
+              ) : (
+                <div className="space-y-4">
+                  {todayChores.map((chore) => {
+                    const latestSubmission = chore.submissions[0];
+                    const isSubmitted = latestSubmission !== undefined;
+                    
+                    return (
+                      <div key={chore.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{chore.template.title}</h3>
+                            <p className="text-sm text-gray-600">{chore.shift} Shift</p>
+                          </div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            chore.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                            chore.status === 'SUBMITTED' ? 'bg-yellow-100 text-yellow-800' :
+                            chore.status === 'NEEDS_REDO' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {chore.status.replace('_', ' ')}
+                          </span>
+                        </div>
+                        
+                        <p className="text-sm text-gray-700 mb-3">{chore.template.description}</p>
+                        
+                        {chore.status === 'NEEDS_REDO' && latestSubmission?.reviewNote && (
+                          <div className="bg-red-50 border border-red-200 rounded p-2 mb-3">
+                            <p className="text-sm text-red-800">
+                              <strong>Staff Notes:</strong> {latestSubmission.reviewNote}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {!isSubmitted || chore.status === 'NEEDS_REDO' ? (
+                          <a
+                            href={`/chores/${chore.id}/submit`}
+                            className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                          >
+                            {chore.status === 'NEEDS_REDO' ? 'Resubmit Chore' : 'Complete & Submit'}
+                          </a>
+                        ) : chore.status === 'SUBMITTED' ? (
+                          <div className="text-center text-sm text-gray-600">
+                            ⏳ Awaiting staff review
+                          </div>
+                        ) : (
+                          <div className="text-center text-sm text-green-600">
+                            ✓ Completed and approved
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Links for Staff/Admin */}
+      {(session.role === 'STAFF' || session.role === 'ADMIN') && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a
+              href="/chores"
+              className="p-4 border rounded-lg hover:bg-gray-50 transition text-center"
+            >
+              <div className="text-2xl mb-2">📋</div>
+              <div className="text-sm font-medium">Manage Chores</div>
+            </a>
+            <a
+              href="/announcements/new"
+              className="p-4 border rounded-lg hover:bg-gray-50 transition text-center"
+            >
+              <div className="text-2xl mb-2">📢</div>
+              <div className="text-sm font-medium">New Announcement</div>
+            </a>
+            <a
+              href="/residents"
+              className="p-4 border rounded-lg hover:bg-gray-50 transition text-center"
+            >
+              <div className="text-2xl mb-2">👥</div>
+              <div className="text-sm font-medium">Residents</div>
+            </a>
+            {session.role === 'ADMIN' && (
+              <a
+                href="/admin"
+                className="p-4 border rounded-lg hover:bg-gray-50 transition text-center"
+              >
+                <div className="text-2xl mb-2">⚙️</div>
+                <div className="text-sm font-medium">Admin Panel</div>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
